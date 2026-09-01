@@ -97,4 +97,23 @@ Texto do usuário:
 
 ---
 
+## 6. Troca de modelo e segundo pedido de revisão
+
+O usuário rodou o comando `/model opus` (comando local da CLI, não um prompt: trocou o modelo do
+agente de Sonnet 5 para Opus 5 no meio da sessão). Em seguida, o prompt:
+
+> revise mais uma vez, analise, compare o que foi pedido e me fale se ainda falta fazer mais
+> alguma coisa
+
+Esta segunda revisão achou o erro mais constrangedor da entrega: **a carta de fechamento em PDF
+estava inteira em Arial**, não em Roboto — a única exigência de formatação explícita do edital. O
+`<link>` do Google Fonts não carregava na renderização headless e o fallback entrou sem erro
+nenhum. A revisão anterior tinha *lido* o CSS (`font-family: 'Roboto'`) e concluído que estava
+certo, sem nunca conferir o resultado. Achado ao inspecionar as fontes realmente embutidas no
+PDF. Também nesta rodada: a spec passou a ser entregue "como estava" mais um registro de
+divergências, como o edital pede literalmente (ver `docs/spec-original.md` e
+`docs/divergencias.md`).
+
+---
+
 <!-- Novas entradas são adicionadas abaixo, em ordem, conforme a sessão continua. -->

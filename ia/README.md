@@ -21,9 +21,25 @@ mesma documentação.
 
 ## Onde o agente errou, como percebi, e o que fiz
 
-Os erros mais sérios só apareceram numa segunda passada, pedida explicitamente pelo usuário ("faça
-uma revisão completa... compare com o que está sendo pedido no pdf"), e os dois são sobre o mesmo
-fato do ambiente (a) lido com mais cuidado do que da primeira vez. Primeiro: a ADR 0001 descrevia
+O erro mais constrangedor foi também o mais simples de evitar, e só apareceu na **terceira**
+passada: a carta de fechamento em PDF — já entregue ao usuário como pronta — estava inteira em
+**Arial**, não em Roboto. Roboto é a única exigência de formatação explícita do edital. O
+`carta.html` declarava `font-family: 'Roboto'` e carregava a fonte por `<link>` do Google Fonts;
+na renderização headless esse carregamento falhou, o CSS caiu no fallback, e **nada emitiu erro**.
+O que torna isso instrutivo é *por que* a revisão anterior não pegou: eu tinha conferido a
+formatação lendo o CSS — vi `'Roboto'`, `11pt`, `1.15`, `6pt`, `justify` e dei por conferido. Ler
+a intenção declarada no código não é verificar o resultado. Só apareceu quando fui inspecionar as
+fontes realmente embutidas no PDF gerado (`/BaseFont` dizia `ArialMT`). Corrigi versionando os
+arquivos da Roboto no repositório e embutindo-os em base64 (`carta-de-fechamento/build.mjs`), sem
+dependência de rede — e o build agora **termina verificando** que a Roboto está no PDF, falhando
+se não estiver. Detalhe que reforça a lição: a primeira versão dessa verificação também estava
+errada (procurava só em `/BaseFont` e reprovou um PDF que já tinha Roboto declarada como
+`/FontName`) — um check que reprova algo correto é tão ruim quanto não ter check, e eu só
+descobri isso porque fui olhar *por que* ele estava reprovando em vez de confiar no veredito.
+
+Os erros mais sérios de engenharia apareceram na segunda passada, também pedida pelo usuário
+("faça uma revisão completa... compare com o que está sendo pedido no pdf"), e os dois são sobre o
+mesmo fato do ambiente (a) lido com mais cuidado do que da primeira vez. Primeiro: a ADR 0001 descrevia
 o worker como recuperável num restart, mas só pela metade — documentos `received` sobrevivem
 porque já estão persistidos; documentos `processing` no momento de um crash **não tinham nenhum
 caminho de volta**, ficavam órfãos para sempre, e a ADR nem mencionava esse caso. Segundo, e mais
@@ -50,6 +66,15 @@ campo vira o nome do arquivo sugerido; a suíte falhou, o código estava certo, 
 
 Em nenhum desses casos assumi que o texto/teste original estava certo e o código errado, ou
 vice-versa — cada correção começou comparando os dois antes de decidir qual lado mudar.
+
+**O padrão por trás de quase todos eles**, que é o que eu levaria adiante: os erros que
+sobreviveram mais tempo foram os que eu "verifiquei" lendo a intenção declarada em vez de olhar o
+resultado produzido. A fonte declarada no CSS não é a fonte no PDF; a ADR dizendo que o worker se
+recupera não é o worker se recuperando; a spec dizendo `JobQueuePort` não é uma `JobQueuePort`.
+Toda vez que troquei "ler o que eu escrevi" por "inspecionar o que saiu", apareceu um erro — e
+foi por isso que, ao corrigir a fonte, o conserto não foi só trocar o CSS: foi colocar a
+verificação dentro do build, para que a próxima falha desse tipo não dependa de alguém lembrar de
+olhar.
 
 ## O ponto de virada da sessão
 
