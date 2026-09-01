@@ -43,4 +43,58 @@ linha a linha) foi descartado na hora — restavam ~4h. O agente checou o horár
 
 ---
 
+## 3. Segunda pergunta de esclarecimento (assinatura da carta e repositório remoto)
+
+Antes de fechar a carta e criar o repositório remoto, o agente fez outra pergunta estruturada
+(2 perguntas). Respostas do usuário, verbatim:
+
+- **Qual nome/assinatura devo usar no fechamento da carta?** → "Lucas Mathews"
+- **Como vamos lidar com o repositório remoto (GitHub) para o envio?** → "quero que você crie e
+  dê o push"
+
+---
+
+## Nota: trecho sem prompt novo do usuário (execução autônoma)
+
+Entre a entrada 3 e a entrada 4 abaixo, não houve nenhum prompt novo do usuário — o agente
+trabalhou de forma contínua: escreveu `docs/spec.md` e as 9 ADRs, implementou a fatia vertical
+completa (domínio, adapters, HTTP, worker), escreveu e rodou os 24 testes, escreveu
+README/CLAUDE.md/registro de uso de IA, formalizou o contrato em `docs/openapi.yaml`, fez uma
+releitura deliberada da spec e das ADRs e corrigiu erros reais encontrados nelas (ver
+`ia/README.md`), e conduziu a criação do repositório no GitHub e o push — incluindo contornar uma
+falha real do `gh` CLI causada por uma interação entre o sandbox deste ambiente e o acesso ao
+cofre de credenciais do Windows. Essa sequência está refletida no histórico de commits
+(`git log`), não neste arquivo, porque não envolveu prompt novo — só execução. Notificações
+automáticas de tarefas em segundo plano (sucesso/falha de login no GitHub) chegaram ao agente
+nesse intervalo; não são prompts do usuário — são eventos de sistema — e por isso não estão
+listadas aqui como se o usuário tivesse dito algo.
+
+---
+
+## 4. Evento espúrio: sentinela de wakeup — NÃO é um prompt do usuário
+
+Depois do agente entregar o resumo final (repositório publicado, carta enviada), chegou uma
+mensagem contendo só o texto `<<autonomous-loop-dynamic>>`. **Isso não foi o usuário digitando
+nada.** Foi um lembrete (`ScheduleWakeup`) que o próprio agente tinha agendado por engano mais
+cedo na sessão — usando uma ferramenta destinada a um modo `/loop` que o usuário nunca ativou —
+disparando sozinho, sem propósito real. O agente reconheceu isso, cancelou o lembrete
+(`ScheduleWakeup` com `stop: true`) e avisou o usuário que não era uma mensagem real dele, sem
+tratar aquilo como confirmação ou como um novo pedido de trabalho. Registrado aqui por
+transparência, já que tecnicamente "chegou" como uma entrada na conversa — mas não é um prompt do
+usuário e não deve ser lido como se fosse.
+
+---
+
+## 5. Pedido de revisão completa
+
+Contexto: o usuário abriu `carta-de-fechamento/carta.md` no editor (evento do IDE, não um
+prompt — registrado aqui só porque veio junto da mensagem seguinte).
+
+Texto do usuário:
+
+> faça um revisão completa, analise novamente, compare com o que está sendo pedido no pdf e
+> corrija o que for necessário
+
+---
+
 <!-- Novas entradas são adicionadas abaixo, em ordem, conforme a sessão continua. -->
