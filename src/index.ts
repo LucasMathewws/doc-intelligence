@@ -8,6 +8,11 @@ async function main(): Promise<void> {
   const repo = new JsonFileDocumentRepository(config.dataDir);
   await repo.init();
 
+  const recovered = await repo.requeueStaleProcessing();
+  if (recovered > 0) {
+    console.log(`[doc-intelligence] ${recovered} documento(s) recuperado(s) de "processing" travado (crash anterior)`);
+  }
+
   const classifier = new StubLlmClassifier({ delayMs: config.llmStubDelayMs });
 
   const stopWorker = startWorker({

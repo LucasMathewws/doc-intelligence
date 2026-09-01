@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { JsonFileDocumentRepository } from "../src/adapters/repository/json-file-document-repository.js";
@@ -64,6 +64,52 @@ test("duas updateWithVersion concorrentes na mesma versao: so uma vence, a outra
     const final = await repo.findById("doc-race");
     assert.equal(final?.version, 1, "so um incremento de versao deve ter acontecido, nao dois");
   });
+});
+
+test("requeueStaleProcessing recupera documentos travados em 'processing' apos um restart simulado", async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), "doc-intel-test-"));
+  try {
+    // Instancia A: simula o processo que caiu no meio do processamento de um documento.
+    const repoBeforeCrash = new JsonFileDocumentRepository(dir);
+    await repoBeforeCrash.init();
+    await repoBeforeCrash.save(makeDocument({ id: "travado", status: "processing", version: 0 }));
+    await repoBeforeCrash.save(makeDocument({ id: "normal", status: "ready", version: 0 }));
+    await repoBeforeCrash.save(makeDocument({ id: "tambem-travado", status: "processing", version: 2 }));
+
+    // Instancia B: novo processo, mesmo diretorio — o que aconteceria num restart de verdade.
+    const repoAfterRestart = new JsonFileDocumentRepository(dir);
+    await repoAfterRestart.init();
+    const recovered = await repoAfterRestart.requeueStaleProcessing();
+
+    assert.equal(recovered, 2, "so os dois documentos em processing devem ser recuperados");
+
+    const travado = await repoAfterRestart.findById("travado");
+    assert.equal(travado?.status, "received");
+    assert.equal(travado?.version, 1, "versao incrementa mesmo na recuperacao (concorrencia otimista continua valendo)");
+
+    const normal = await repoAfterRestart.findById("normal");
+    assert.equal(normal?.status, "ready", "documento que nao estava travado fica intocado");
+    assert.equal(normal?.version, 0);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("tolera BOM no documents.json (ex.: arquivo editado a mao no Windows)", async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), "doc-intel-test-"));
+  try {
+    const repo = new JsonFileDocumentRepository(dir);
+    await repo.init();
+    const doc = makeDocument({ id: "com-bom" });
+    // Reescreve o arquivo com um BOM na frente, simulando uma ferramenta que grava UTF-8 com BOM
+    // (ex.: `Set-Content -Encoding utf8` do PowerShell) — achado ao testar manualmente o boot.
+    await writeFile(path.join(dir, "documents.json"), "﻿" + JSON.stringify([doc]), "utf-8");
+
+    const reloaded = await repo.findById("com-bom");
+    assert.deepEqual(reloaded, doc);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
 });
 
 test("list respeita filtro de status e paginacao", async () => {

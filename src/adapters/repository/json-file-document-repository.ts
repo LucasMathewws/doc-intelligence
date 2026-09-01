@@ -33,7 +33,11 @@ export class JsonFileDocumentRepository implements DocumentRepositoryPort {
 
   private async readAll(): Promise<DocumentRecord[]> {
     const raw = await fs.readFile(this.filePath, "utf-8");
-    return JSON.parse(raw) as DocumentRecord[];
+    // Node não remove um BOM (﻿) automaticamente ao ler como utf-8, e ferramentas comuns no
+    // Windows (ex.: PowerShell `Set-Content -Encoding utf8`) escrevem um por padrão — se alguém
+    // editar este arquivo manualmente com uma dessas ferramentas, JSON.parse quebraria sem isso.
+    const withoutBom = raw.charCodeAt(0) === 0xfeff ? raw.slice(1) : raw;
+    return JSON.parse(withoutBom) as DocumentRecord[];
   }
 
   private async writeAll(docs: DocumentRecord[]): Promise<void> {
@@ -106,6 +110,18 @@ export class JsonFileDocumentRepository implements DocumentRepositoryPort {
       const next = [...docs];
       next[idx] = updated;
       return { docs: next, result: updated };
+    });
+  }
+
+  async requeueStaleProcessing(): Promise<number> {
+    return this.mutate((docs) => {
+      let count = 0;
+      const next = docs.map((d) => {
+        if (d.status !== "processing") return d;
+        count++;
+        return { ...d, status: "received" as const, version: d.version + 1 };
+      });
+      return { docs: next, result: count };
     });
   }
 

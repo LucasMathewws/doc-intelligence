@@ -32,6 +32,13 @@ export interface DocumentRepositoryPort {
   ): Promise<DocumentRecord>;
   saveBlob(hash: string, bytes: Buffer): Promise<void>;
   readBlob(hash: string): Promise<Buffer | null>;
+  /**
+   * Recuperação de crash (ADR 0001): documentos presos em "processing" (o processo caiu no meio
+   * de uma chamada ao classificador) não têm mais nenhum caminho automático de volta a "received"
+   * — chamado uma vez no boot, antes do worker começar. Devolve quantos documentos foram
+   * recuperados. Não mexe em `attempts`: é falha de infraestrutura, não do documento.
+   */
+  requeueStaleProcessing(): Promise<number>;
 }
 
 export interface ClassificationResult {

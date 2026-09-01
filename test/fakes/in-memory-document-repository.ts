@@ -49,6 +49,16 @@ export class InMemoryDocumentRepository implements DocumentRepositoryPort {
     return updated;
   }
 
+  async requeueStaleProcessing(): Promise<number> {
+    let count = 0;
+    this.docs = this.docs.map((d) => {
+      if (d.status !== "processing") return d;
+      count++;
+      return { ...d, status: "received" as const, version: d.version + 1 };
+    });
+    return count;
+  }
+
   async saveBlob(hash: string, bytes: Buffer): Promise<void> {
     this.blobs.set(hash, bytes);
   }
