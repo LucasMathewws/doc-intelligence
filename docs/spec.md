@@ -3,10 +3,11 @@
 > Escrito antes de programar. Se a implementação divergiu em algum ponto, isso está marcado
 > explicitamente com **DIVERGÊNCIA** no lugar em que acontece, não escondido.
 >
-> Contexto de prazo: este documento foi escrito sob um prazo real de ~4h (ver `ia/prompts.md`),
-> não os 3 dias corridos previstos no edital. Isso define o tamanho do escopo abaixo — a decisão
-> consciente foi cobrir os 7 fatos do ambiente com profundidade honesta, em vez de tentar as 5
-> funcionalidades-alvo por igual.
+> Contexto de prazo: quando esta sessão começou, restavam ~4h até o prazo (ver `ia/prompts.md`) —
+> bem menos do que eu tinha assumido de início. Não sei quando o documento foi originalmente
+> recebido nem por que restava tão pouco tempo; só sei que restava. Isso define o tamanho do
+> escopo abaixo — a decisão consciente foi cobrir os 7 fatos do ambiente com profundidade honesta,
+> em vez de tentar as 5 funcionalidades-alvo por igual.
 
 ## 1. Objetivo
 

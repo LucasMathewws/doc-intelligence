@@ -41,11 +41,13 @@ que já estava certo.
 
 ## O ponto de virada da sessão
 
-A pergunta inicial de esclarecimento assumiu prazo de 3 dias corridos (o que o edital prevê). A
-resposta do usuário revelou que o prazo real era às 13h do mesmo dia — poucas horas, não dias. O
-agente conferiu o horário real do sistema antes de confiar nisso (`date` retornou UTC-3, batendo
-com o horário local esperado) e replanejou o escopo inteiro na hora: de "3 dias com deliberação
-linha a linha" para um plano compacto priorizado pelos critérios de nota do próprio edital
-(arquitetura e rastreabilidade de decisões pesam mais que amplitude de funcionalidade). Ver
+A primeira pergunta de esclarecimento já incluiu, como uma das opções, "recebi hoje, restam ~3
+dias corridos" — por precaução, não por suposição: não havia como saber sem perguntar. A resposta
+do usuário revelou que o prazo real era às 13h do mesmo dia — poucas horas, não dias (não se sabe
+aqui quando o documento foi originalmente recebido nem por quê restava tão pouco; só que restava).
+O agente conferiu o horário real do sistema antes de confiar nisso (`date` retornou UTC-3, batendo
+com o horário local esperado) e replanejou o escopo inteiro na hora: de "vários dias com
+deliberação linha a linha" para um plano compacto priorizado pelos critérios de nota do próprio
+edital (arquitetura e rastreabilidade de decisões pesam mais que amplitude de funcionalidade). Ver
 `ia/prompts.md` para a virada completa e a carta de fechamento para quanto tempo o trabalho
 efetivamente levou.

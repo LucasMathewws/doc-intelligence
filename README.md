@@ -9,8 +9,8 @@ Este é um recorte deliberadamente estreito de um sistema maior. **Leia antes de
 tamanho**: `docs/spec.md` (o que foi decidido e por quê) e a carta de fechamento (o que ficou de
 fora e o que quebra primeiro com 10x volume).
 
-> Contexto: esta entrega foi feita sob um prazo real de ~4h, não os 3 dias corridos previstos no
-> edital — ver `ia/README.md`. Isso define o tamanho do que está aqui.
+> Contexto: quando esta sessão começou, restavam ~4h até o prazo, bem menos do que eu tinha
+> assumido de início — ver `ia/README.md`. Isso define o tamanho do que está aqui.
 
 ## Como rodar
 
