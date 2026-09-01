@@ -16,9 +16,9 @@ risco conscientemente registrado e não implementado: normalização de foto tor
 real serviço-a-serviço no lugar de uma API key estática (ADR 0006), e fila durável (Redis/SQS) no
 lugar do loop in-process atual (ADR 0001). Nenhuma dessas é uma omissão silenciosa — cada uma tem
 uma ADR explicando a troca considerada e por que fiquei com a alternativa mais simples. A razão de
-fundo, para todas: o prazo real desta entrega não foram os 3 dias corridos previstos no edital, e
-sim poucas horas no mesmo dia (ver pergunta 4) — a escolha consciente foi tratar os 7 fatos do
-ambiente com profundidade honesta, em vez de perseguir as 5 funcionalidades-alvo por igual.
+fundo, para todas: quando comecei a trabalhar nisso, restavam poucas horas até o prazo, não os
+dias que eu tinha assumido de início (ver pergunta 4) — a escolha consciente foi tratar os 7 fatos
+do ambiente com profundidade honesta, em vez de perseguir as 5 funcionalidades-alvo por igual.
 
 **2. O que quebra primeiro se o volume for multiplicado por dez**
 
@@ -48,14 +48,14 @@ frágil.
 
 **4. Quanto tempo isso tudo levou**
 
-A pergunta de esclarecimento inicial assumiu os 3 dias corridos previstos no edital. A resposta
-revelou que o prazo real era às 13h do mesmo dia 1º de setembro — a sessão inteira, do primeiro
-contato com o PDF do edital até esta carta, coube em uma única manhã, entre 8h52 e aproximadamente
-[HORA_FINAL], cerca de [DURAÇÃO_TOTAL] corridas, sem pausa. Isso está registrado em detalhe em
+Perguntei quanto tempo restava logo no início, sem assumir nada — e foi bom ter perguntado: o
+prazo real era às 13h de hoje, 1º de setembro. A sessão inteira, do primeiro contato com o PDF do
+edital até esta carta, coube em uma única manhã, entre 8h52 e aproximadamente
+10h05, cerca de 1h13 corridas, sem pausa. Isso está registrado em detalhe em
 `ia/prompts.md` porque muda a leitura de tudo o que vem antes nesta carta: o padrão de decisão
 não foi "o que é tecnicamente melhor", foi "o que é honesto e defensável dentro do tempo que
 realmente existia" — inclusive esta resposta.
 
 Atenciosamente,
 
-[Seu nome]
+Lucas Mathews
