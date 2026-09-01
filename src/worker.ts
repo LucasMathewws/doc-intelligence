@@ -8,6 +8,7 @@ export interface WorkerOptions {
   maxAttempts: number;
   maxConcurrent: number;
   intervalMs: number;
+  classifierTimeoutMs: number;
 }
 
 /**
@@ -36,6 +37,7 @@ export function startWorker(opts: WorkerOptions): () => void {
             classifier: opts.classifier,
             confidenceThreshold: opts.confidenceThreshold,
             maxAttempts: opts.maxAttempts,
+            classifierTimeoutMs: opts.classifierTimeoutMs,
           },
           doc,
         )

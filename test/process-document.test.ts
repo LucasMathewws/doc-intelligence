@@ -36,7 +36,7 @@ test("confianca >= limiar -> status ready", async () => {
   await repo.saveBlob(doc.contentHash, Buffer.from("bytes"));
 
   const classifier = new FakeClassifier([{ ...CANNED, confidence: 0.95 }]);
-  await processDocument({ repo, classifier, confidenceThreshold: 0.8, maxAttempts: 3 }, doc);
+  await processDocument({ repo, classifier, confidenceThreshold: 0.8, maxAttempts: 3, classifierTimeoutMs: 5000 }, doc);
 
   const updated = await repo.findById(doc.id);
   assert.equal(updated?.status, "ready");
@@ -52,7 +52,7 @@ test("confianca < limiar -> status needs_review, nunca 'ready'", async () => {
   await repo.saveBlob(doc.contentHash, Buffer.from("bytes"));
 
   const classifier = new FakeClassifier([{ ...CANNED, confidence: 0.5 }]);
-  await processDocument({ repo, classifier, confidenceThreshold: 0.8, maxAttempts: 3 }, doc);
+  await processDocument({ repo, classifier, confidenceThreshold: 0.8, maxAttempts: 3, classifierTimeoutMs: 5000 }, doc);
 
   const updated = await repo.findById(doc.id);
   assert.equal(updated?.status, "needs_review");
@@ -65,7 +65,7 @@ test("falha do classificador: reprocessa ate esgotar tentativas, so entao marca 
   await repo.saveBlob(doc.contentHash, Buffer.from("bytes"));
 
   const classifier = new FakeClassifier([new Error("timeout simulado do fornecedor")]);
-  const deps = { repo, classifier, confidenceThreshold: 0.8, maxAttempts: 2 };
+  const deps = { repo, classifier, confidenceThreshold: 0.8, maxAttempts: 2, classifierTimeoutMs: 5000 };
 
   await processDocument(deps, doc);
   let current = await repo.findById(doc.id);
@@ -84,9 +84,32 @@ test("documento sem blob correspondente falha direto, sem chamar o classificador
   await repo.save(doc); // blob nunca foi salvo — inconsistencia defensiva
 
   const classifier = new FakeClassifier([CANNED]);
-  await processDocument({ repo, classifier, confidenceThreshold: 0.8, maxAttempts: 3 }, doc);
+  await processDocument({ repo, classifier, confidenceThreshold: 0.8, maxAttempts: 3, classifierTimeoutMs: 5000 }, doc);
 
   const updated = await repo.findById(doc.id);
   assert.equal(updated?.status, "failed");
   assert.equal(classifier.calls.length, 0, "nao deveria pagar uma chamada ao classificador sem ter o arquivo");
+});
+
+// Fato do ambiente (a), literalmente: o classificador "de vez em quando... simplesmente nao
+// responde". Sem teto de tempo, isso travaria um slot de concorrencia do worker para sempre —
+// achado nesta revisao, nao fazia parte do plano original.
+test("classificador que nunca responde: trata como falha apos o timeout, nao trava para sempre", async () => {
+  const repo = new InMemoryDocumentRepository();
+  const doc = makeDocument({ status: "received" });
+  await repo.save(doc);
+  await repo.saveBlob(doc.contentHash, Buffer.from("bytes"));
+
+  const hangingClassifier: LlmClassifierPort = {
+    classify: () => new Promise(() => {}), // nunca resolve nem rejeita — simula "nao responde"
+  };
+
+  await processDocument(
+    { repo, classifier: hangingClassifier, confidenceThreshold: 0.8, maxAttempts: 3, classifierTimeoutMs: 50 },
+    doc,
+  );
+
+  const updated = await repo.findById(doc.id);
+  assert.equal(updated?.status, "received", "trata como falha comum — ainda tem tentativa, volta pra fila");
+  assert.match(updated?.lastError ?? "", /não respondeu/);
 });

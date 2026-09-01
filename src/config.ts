@@ -15,4 +15,8 @@ export const config = {
   maxAttempts: num("MAX_ATTEMPTS", 3),
   llmStubDelayMs: num("LLM_STUB_DELAY_MS", 800),
   maxUploadBytes: num("MAX_UPLOAD_BYTES", 15 * 1024 * 1024),
+  // Fato do ambiente (a): a chamada ao classificador "de vez em quando... simplesmente não
+  // responde" — sem um teto, isso trava um slot de concorrência do worker para sempre. Acima do
+  // teto documentado de 40s para dar folga a uma chamada real lenta, mas legítima.
+  classifierTimeoutMs: num("LLM_CALL_TIMEOUT_MS", 45_000),
 };

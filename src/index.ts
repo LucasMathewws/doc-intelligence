@@ -22,6 +22,7 @@ async function main(): Promise<void> {
     maxAttempts: config.maxAttempts,
     maxConcurrent: config.maxConcurrentLlmCalls,
     intervalMs: config.workerIntervalMs,
+    classifierTimeoutMs: config.classifierTimeoutMs,
   });
 
   const app = createServer({ repo, apiKey: config.apiKey, maxUploadBytes: config.maxUploadBytes });
