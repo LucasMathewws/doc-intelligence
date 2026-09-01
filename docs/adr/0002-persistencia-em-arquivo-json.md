@@ -4,7 +4,7 @@ Status: aceito · **candidato a ser a decisão que eu menos defenderia** (ver ca
 
 ## Contexto
 
-Track A pede para desenhar a persistência, não necessariamente rodar Postgres. O prazo real desta
+A Trilha A pede para desenhar a persistência, não necessariamente rodar Postgres. O prazo real desta
 entrega é de horas, num ambiente Windows onde eu não confio de antemão em toolchain de compilação
 nativa disponível.
 

@@ -12,7 +12,7 @@ identidade). Isso é uma restrição legal (LGPD), não só técnica.
 Nesta fatia, o tratamento é parcial e explícito sobre o que falta:
 
 **Feito:**
-- Toda rota exige API key (ADR 0006) — não há acesso anônimo.
+- Toda rota de negócio exige API key (ADR 0006) — não há acesso anônimo aos documentos.
 - Campos extraídos (nome, filiação, endereço etc.) nunca são escritos em log — só o `id` do
   documento e o status circulam em mensagens de log.
 - `.gitignore` cobre `data/` (onde ficam os documentos reais processados) — nenhum dado de teste

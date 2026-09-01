@@ -14,8 +14,8 @@ que está) e a fila (ADR 0001, mesma razão).
 Camadas: `src/domain` (entidades, casos de uso, portas — sem importar Express, sem saber o que é
 HTTP ou sistema de arquivo) → `src/adapters` (implementações concretas: HTTP/Express,
 repositório em arquivo, classificador stub) → `src/index.ts` (composição: instancia os adaptadores
-e injeta nos casos de uso). Um caso de uso como `ingestDocument(repo, file, meta)` recebe suas
-dependências como parâmetro — não importa `JsonFileDocumentRepository` diretamente.
+e injeta nos casos de uso). Um caso de uso como `ingestDocument(repo, input)` recebe o repositório
+como parâmetro — não importa `JsonFileDocumentRepository` diretamente, só o tipo `DocumentRepositoryPort`.
 
 Framework HTTP: Express puro, sem NestJS/framework opinativo por cima.
 
@@ -37,7 +37,9 @@ Framework HTTP: Express puro, sem NestJS/framework opinativo por cima.
 ## Consequências / riscos conhecidos
 
 - Composição manual em `index.ts` não escala infinitamente — com muitos casos de uso e adaptadores,
-  um container de DI passa a valer a pena. Não é o caso aqui (3 portas, 3 adaptadores).
+  um container de DI passa a valer a pena. Não é o caso aqui (2 portas —
+  `DocumentRepositoryPort`, `LlmClassifierPort` — com um adapter secundário cada, mais o HTTP como
+  único adapter de entrada).
 - A disciplina de "domínio não importa Express" depende de revisão de código continuada; não há
   lint rule aplicada nesta fatia para impedir um import errado (ex.: `eslint-plugin-boundaries`
   faria isso em produção — não configurado aqui por tempo).

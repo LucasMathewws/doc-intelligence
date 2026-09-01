@@ -11,7 +11,11 @@ entrega.
 ## Decisão
 
 Middleware que exige header `Authorization: Bearer <valor>` igual a uma `API_KEY` fixa vinda de
-variável de ambiente, em todas as rotas. Sem isso: `401`.
+variável de ambiente, em todas as rotas de negócio (`/v1/documents/*`). Sem isso: `401`.
+`GET /health` fica de fora de propósito — é para infraestrutura (load balancer, orquestrador)
+verificar se o processo está de pé, não é contrato de negócio, e health checks não deveriam
+precisar de credencial pra não criar dependência circular entre "está saudável" e "tem uma chave
+válida".
 
 ## Alternativas consideradas
 

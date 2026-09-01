@@ -12,8 +12,10 @@ paga ao classificador e um registro duplicado na fila de revisão.
 
 No `POST /documents`, calcula-se SHA-256 dos bytes recebidos antes de qualquer outra coisa. Se já
 existe um documento com esse hash, **não** cria um registro novo: devolve o documento existente
-(`200 OK`, com `duplicateOf` preenchido apontando pra ele mesmo). Só cria (`201 Created`) quando o
-hash é inédito.
+(`200 OK`, com `duplicate: true` na resposta). Só cria (`201 Created`, `duplicate: false`) quando o
+hash é inédito. O hash já É a chave de deduplicação — não há necessidade de um campo
+`duplicateOf` apontando um documento para si mesmo (primeira versão da spec tinha esse campo;
+corrigido antes de implementar, ver `docs/spec.md`).
 
 ## Alternativas consideradas
 
