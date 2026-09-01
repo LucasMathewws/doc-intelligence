@@ -164,8 +164,9 @@ da avaliação, então isso é intencional):
 
 ## 5. Contrato da API
 
-Todas as rotas exigem header `Authorization: Bearer <API_KEY>` (placeholder de autenticação
-serviço-a-serviço — ADR 0006). Respostas de erro seguem `{ "error": { "code", "message" } }`.
+Todas as rotas de negócio (`/v1/*`) exigem header `Authorization: Bearer <API_KEY>` (placeholder
+de autenticação serviço-a-serviço — ADR 0006); `GET /health`, descrito no fim desta seção, é a
+única exceção. Respostas de erro seguem `{ "error": { "code", "message" } }`.
 
 | Método | Rota | Descrição |
 |---|---|---|
