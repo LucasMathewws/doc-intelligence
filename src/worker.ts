@@ -1,5 +1,6 @@
 import type { DocumentRepositoryPort, LlmClassifierPort } from "./domain/ports.js";
 import { processDocument } from "./domain/services/process-document.js";
+import { VersionConflictError } from "./domain/errors.js";
 
 export interface WorkerOptions {
   repo: DocumentRepositoryPort;
@@ -42,8 +43,15 @@ export function startWorker(opts: WorkerOptions): () => void {
           doc,
         )
           .catch((err) => {
-            // Um documento com erro não pode derrubar o worker inteiro — próximo tick tenta de
-            // novo (ou outro documento segue normalmente).
+            // Conflito de versão aqui é contenção esperada, não falha: dois ticks podem listar o
+            // mesmo documento antes de o primeiro conseguir marcá-lo como "processing". O perdedor
+            // para antes de chamar o classificador — é justamente esse check que impede pagar duas
+            // vezes pelo mesmo documento (fato do ambiente "a": cobrado por documento). Logar isso
+            // como erro treinaria quem opera a ignorar o log.
+            if (err instanceof VersionConflictError) return;
+
+            // Qualquer outro erro: um documento não pode derrubar o worker inteiro — próximo tick
+            // tenta de novo (ou outro documento segue normalmente).
             console.error(`[worker] erro processando documento ${doc.id}:`, err instanceof Error ? err.message : err);
           })
           .finally(() => {

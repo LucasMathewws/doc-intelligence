@@ -186,7 +186,15 @@ valida nada do lado dele).
 - `200 OK` — hash já existe; corpo = `Document` existente `& { duplicate: true }`, para o cliente
   saber que não é um registro novo sem precisar comparar timestamps (fato **c**). Não criamos um
   registro novo self-referenciando o original — o hash já É a chave de deduplicação.
-- `400` — arquivo ausente, tipo não reconhecido pelos magic bytes, ou acima do limite de tamanho.
+- `400` — três casos distintos, separados por `error.code`:
+  - `missing_file` — campo `file` ausente.
+  - `file_too_large` — acima de `MAX_UPLOAD_BYTES`.
+  - `unsupported_file_type` — os magic bytes não batem com PDF, JPEG nem PNG.
+
+  Os três são erro do cliente, não do servidor. Vale dizer explicitamente porque o fato do
+  ambiente **b** garante que isso é rotina, não incidente: quem envia não valida nada, então
+  arquivo fora do limite ou fora do formato chega todo dia e não pode acordar ninguém de
+  plantão.
 
 ### GET /v1/documents/:id
 
@@ -204,7 +212,10 @@ Stream dos bytes originais com o `Content-Type` detectado. `404` se não existir
 
 Corpo: `{ version: number, reviewer: string, fields?: Record<string,string>, docType?: string }`.
 
-- `400` — `version` ausente/não-numérico ou `reviewer` ausente/vazio (`code: "invalid_body"`).
+- `400` (`code: "invalid_body"`) — `version` ausente ou não-inteiro; `reviewer` ausente ou vazio;
+  `fields` que não seja um objeto de string para string (array e valores numéricos são
+  rejeitados aqui, na fronteira — sem isso o tipo `Record<string,string>` do domínio seria uma
+  promessa não verificada); ou `docType` fora da lista conhecida.
 - `404` — id não existe.
 - `409` (`code: "version_conflict"`) — `version` não bate com o `version` atual do documento
   (concorrência otimista — fato **g**). Corpo inclui `current` = `Document` atual, para o cliente

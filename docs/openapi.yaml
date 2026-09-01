@@ -45,7 +45,21 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Document" }
-        "400": { $ref: "#/components/responses/BadRequest" }
+        "400":
+          description: >
+            Erro do cliente, diferenciado por `error.code`: `missing_file` (campo file ausente),
+            `file_too_large` (acima de MAX_UPLOAD_BYTES) ou `unsupported_file_type` (magic bytes
+            não batem com PDF/JPEG/PNG).
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: object
+                    properties:
+                      code: { type: string, enum: [missing_file, file_too_large, unsupported_file_type] }
+                      message: { type: string }
         "401": { $ref: "#/components/responses/Unauthorized" }
     get:
       summary: Lista documentos

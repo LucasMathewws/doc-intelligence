@@ -91,6 +91,40 @@ test("documento sem blob correspondente falha direto, sem chamar o classificador
   assert.equal(classifier.calls.length, 0, "nao deveria pagar uma chamada ao classificador sem ter o arquivo");
 });
 
+// Fato do ambiente (a): a chamada ao classificador "e cobrada por documento". O worker pode
+// listar o MESMO documento em dois ticks seguidos, antes de o primeiro conseguir marca-lo como
+// "processing" — e nesse caso ele NAO pode ser classificado (nem cobrado) duas vezes.
+//
+// Hoje quem garante isso e o updateWithVersion da ADR 0005, que rejeita o segundo antes de
+// chegar ao classificador. Essa protecao era acidental: existia como efeito colateral da
+// concorrencia otimista, sem nenhum teste apontando para ela. Este teste torna o invariante
+// explicito, para que ninguem "simplifique" essa checagem no futuro sem perceber que ela tambem
+// protege o orcamento de chamadas ao fornecedor.
+test("mesmo documento processado em paralelo: classificador e chamado UMA vez so", async () => {
+  const repo = new InMemoryDocumentRepository();
+  const doc = makeDocument({ status: "received", version: 0 });
+  await repo.save(doc);
+  await repo.saveBlob(doc.contentHash, Buffer.from("bytes"));
+
+  let chamadas = 0;
+  const contador: LlmClassifierPort = {
+    async classify() {
+      chamadas++;
+      await new Promise((r) => setTimeout(r, 30));
+      return CANNED;
+    },
+  };
+  const deps = { repo, classifier: contador, confidenceThreshold: 0.8, maxAttempts: 3, classifierTimeoutMs: 5000 };
+
+  const resultados = await Promise.allSettled([processDocument(deps, doc), processDocument(deps, doc)]);
+
+  assert.equal(chamadas, 1, "documento nao pode ser classificado (e cobrado) duas vezes");
+  assert.equal(resultados.filter((r) => r.status === "rejected").length, 1, "o perdedor da corrida deve falhar");
+  const final = await repo.findById(doc.id);
+  assert.equal(final?.status, "ready");
+  assert.equal(final?.attempts, 1, "uma unica tentativa deve ter sido contabilizada");
+});
+
 // Fato do ambiente (a), literalmente: o classificador "de vez em quando... simplesmente nao
 // responde". Sem teto de tempo, isso travaria um slot de concorrencia do worker para sempre —
 // achado nesta revisao, nao fazia parte do plano original.

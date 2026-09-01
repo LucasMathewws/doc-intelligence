@@ -73,7 +73,17 @@ Uso três categorias, porque misturá-las esconderia o que interessa:
 | **Por quê** | O código sempre foi assim (`server.ts` registra `/health` fora do middleware, desde o primeiro commit da implementação, com comentário explicando). A spec é que dizia "todas" sem a ressalva, e nem documentava a rota. |
 | **Quando** | Commits `7498386` e `2362b73`. |
 
-## 7. Contrato de erro do `PATCH /review` incompleto — erro de redação
+## 7. Upload acima do limite devolvia `500` — divergência real (era bug)
+
+| | |
+|---|---|
+| **Spec original dizia** | `400` para "arquivo ausente, tipo não reconhecido pelos magic bytes, ou acima do limite de tamanho". |
+| **Código fazia** | `400` nos dois primeiros casos, mas **`500 internal_error`** no terceiro: o `MulterError` de `LIMIT_FILE_SIZE` não era tratado e caía no ramo genérico do error handler. |
+| **Por quê importava** | Erro do cliente reportado como erro do servidor. Pelo fato do ambiente (b) — quem envia não valida nada — arquivo fora do limite é rotina diária, não incidente: em produção isso acordaria o plantão e ainda deixaria o cliente sem mensagem acionável. |
+| **Como apareceu** | Testando a rota de verdade com `MAX_UPLOAD_BYTES=200` em vez de reler o código. As duas revisões anteriores leram esse trecho e não viram. |
+| **Estado** | Corrigido: `uploadOrBadRequest()` traduz `MulterError` em `400` (`file_too_large` / `invalid_upload`). A spec viva agora lista os três códigos separadamente. |
+
+## 8. Contrato de erro do `PATCH /review` incompleto — erro de redação
 
 | | |
 |---|---|
