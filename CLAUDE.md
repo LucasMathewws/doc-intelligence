@@ -37,6 +37,13 @@ npm run typecheck      # tsc --noEmit — deve continuar limpo
 
 ## Regras não-negociáveis
 
+- **Verifique o resultado, não a intenção declarada.** Esta regra existe porque foi violada nesta
+  sessão, três vezes, e as três custaram caro (ver `ia/README.md`): o CSS dizia `font-family:
+  'Roboto'` e o PDF saiu em Arial; a ADR dizia que o worker se recuperava de um crash e ele não se
+  recuperava; a spec citava uma `JobQueuePort` que não existia. Ler o que está escrito no arquivo
+  não é verificação. Antes de declarar algo pronto: rode, inspecione a saída, e prefira mover a
+  checagem para dentro do build (como `carta-de-fechamento/build.mjs` faz com a fonte) a confiar
+  em alguém lembrar de olhar.
 - **Nenhum dado real de cliente, pessoa física ou do escritório** em código, fixture, teste ou
   commit. Todo dado de exemplo é fictício (ver `fixtures/` e `src/adapters/llm/stub-llm-classifier.ts`).
 - Antes de mudar uma decisão registrada em `docs/adr/`, escreva uma ADR nova (não edite a antiga
