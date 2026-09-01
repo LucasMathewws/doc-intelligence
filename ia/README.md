@@ -21,23 +21,35 @@ mesma documentação.
 
 ## Onde o agente errou, como percebi, e o que fiz
 
-O erro mais significativo não estava no código — estava na documentação sobre o código. Ao
-escrever `docs/spec.md` §4, descrevi a troca de fila (in-process → SQS/BullMQ) como algo isolado
-atrás de uma interface `JobQueuePort`, citando-a como se já existisse. Ela nunca foi criada — não
-há esse arquivo, essa interface, nada. Isso só apareceu porque fiz uma releitura deliberada da
-spec inteira depois do código pronto (não fazia parte do plano original, foi uma escolha de usar
-tempo de sobra) e passei um `grep` por todas as citações de ADR pra conferir se cada uma apontava
-pro assunto certo. Achei essa reivindicação falsa e mais três citações de ADR com o número
-trocado (ex.: um trecho sobre o dublê determinístico citava a ADR de persistência em vez da ADR
-do próprio dublê). Corrigi as quatro, e na do `JobQueuePort` não criei a interface só para a spec
-ficar "verdadeira" — descrevi o que realmente sustenta a alegação (`processDocument` não importa
-nada de `worker.ts`, então a troca é isolada mesmo sem interface nomeada), porque criar uma
-interface com um único caller só para bater com o texto seria exatamente o tipo de abstração
-prematura que a ADR 0009 argumenta contra. Um segundo erro, menor e mais mecânico: em
-`test/process-document.test.ts`, assumi por engano que o campo `nome` seria usado no nome de
-arquivo sugerido para `identidade`; a suíte falhou, comparei a asserção com `KEY_FIELD_BY_TYPE`
-em `suggest-filename.ts`, vi que o campo-chave real é `numero`, e corrigi o teste — não o código,
-que já estava certo.
+Os erros mais sérios só apareceram numa segunda passada, pedida explicitamente pelo usuário ("faça
+uma revisão completa... compare com o que está sendo pedido no pdf"), e os dois são sobre o mesmo
+fato do ambiente (a) lido com mais cuidado do que da primeira vez. Primeiro: a ADR 0001 descrevia
+o worker como recuperável num restart, mas só pela metade — documentos `received` sobrevivem
+porque já estão persistidos; documentos `processing` no momento de um crash **não tinham nenhum
+caminho de volta**, ficavam órfãos para sempre, e a ADR nem mencionava esse caso. Segundo, e mais
+direto ainda: o fato (a) diz, com todas as letras, que o classificador "de vez em quando...
+simplesmente não responde" — e nada no código impunha um teto de tempo pra essa chamada. Um
+classificador real travado ocuparia um slot de concorrência do worker para sempre; o suficiente
+disso acontecendo e o worker inteiro para, sem erro nenhum aparecendo em lugar nenhum. Os dois
+eram bugs de verdade, não só lacuna de texto, e corrigi os dois no código: `requeueStaleProcessing()`
+na porta do repositório (chamado uma vez no boot) e um `withTimeout()` em volta da chamada ao
+classificador. Testei o primeiro manualmente, injetando um documento `processing` direto no
+arquivo e subindo o servidor — o que revelou um TERCEIRO bug nesse processo: escrevi o arquivo de
+teste com `Set-Content -Encoding utf8` do PowerShell (que grava BOM por padrão) e o `JSON.parse`
+do repositório quebrava com isso. Testei o segundo com um classificador fake que nunca resolve a
+promise. Os três ganharam teste automatizado (`json-file-document-repository.test.ts`,
+`process-document.test.ts`).
+
+Um segundo erro, de documentação: `docs/spec.md` §4 descrevia a troca de fila (in-process →
+SQS/BullMQ) como algo isolado atrás de uma interface `JobQueuePort` — que nunca foi criada. Achei
+isso e mais três citações de ADR com o número trocado passando um `grep` por todas as referências
+cruzadas da spec depois do código pronto. Corrigi o texto direto (sem criar a interface só para a
+spec "bater" — isso seria abstração sem segundo uso, que a própria ADR 0009 argumenta contra).
+Um terceiro, menor: um teste (`process-document.test.ts`) tinha uma asserção errada sobre qual
+campo vira o nome do arquivo sugerido; a suíte falhou, o código estava certo, corrigi o teste.
+
+Em nenhum desses casos assumi que o texto/teste original estava certo e o código errado, ou
+vice-versa — cada correção começou comparando os dois antes de decidir qual lado mudar.
 
 ## O ponto de virada da sessão
 

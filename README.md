@@ -47,7 +47,7 @@ Contrato completo (todas as rotas, formatos de erro, máquina de estados): `docs
 
 ```bash
 npm run typecheck   # tsc --noEmit
-npm test            # node:test, 24 casos, roda em <1s
+npm test            # node:test, 26 casos, roda em <1s
 ```
 
 **O que escolhi testar, e por quê**: não busquei cobertura alta — busquei os pontos onde um erro
@@ -65,18 +65,20 @@ edital ou a um alvo de comportamento:
    **sobrevive intacta** depois do conflito da segunda, não só que a segunda recebeu erro.
 4. **Detecção de tipo por conteúdo** (`content-sniff.test.ts`) — fato (b): remetente não valida
    nada, nome de arquivo não é confiável.
-5. **Serialização de escrita no repositório em arquivo** (`json-file-document-repository.test.ts`)
-   — o teste de concorrência em `review-document.test.ts` prova a regra de negócio (versão errada
-   é rejeitada) usando o fake em memória; este aqui prova que o adaptador real (arquivo JSON,
-   fila de escrita interna) não perde uma mutação quando duas chamadas a `updateWithVersion`
-   acontecem sem await entre elas — é a peça de concorrência que eu mais desconfiava de mim mesmo
-   escrevendo à mão, então ganhou teste dedicado no adaptador, não só no domínio.
+5. **O adaptador de arquivo real** (`json-file-document-repository.test.ts`) — três coisas que só
+   aparecem fora do fake em memória: (a) serialização de escrita — duas chamadas a
+   `updateWithVersion` sem await entre elas não podem perder uma mutação; (b) recuperação de
+   documentos travados em `processing` após um crash simulado (restart com duas instâncias do
+   repositório apontando pro mesmo diretório) — achado numa releitura, não estava coberto antes;
+   (c) tolerância a BOM no `documents.json` — achado testando (b) manualmente, quando escrever o
+   arquivo de fixture com PowerShell quebrou o `JSON.parse`. As três são a peça de maior risco do
+   próprio adaptador, não do domínio, por isso ganharam teste dedicado em vez de só confiar no fake.
 
 Não testei: a camada HTTP diretamente (rotas/middleware) — testei os casos de uso de domínio
 puros, com um repositório em memória (`test/fakes/`) no lugar do adaptador de arquivo. A cobertura
-HTTP ficou para verificação manual (ver sessão de smoke test nos prompts, `ia/prompts.md`) — é
-código fino o suficiente (parse de request → chama caso de uso → serializa resposta) que o risco
-de bug ali é menor do que nas quatro áreas acima.
+HTTP ficou para verificação manual (ver sessão de smoke test em `ia/prompts.md`) — é código fino o
+suficiente (parse de request → chama caso de uso → serializa resposta) que o risco de bug ali é
+menor do que nas cinco áreas acima.
 
 ## Estrutura
 

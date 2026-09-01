@@ -1,7 +1,20 @@
 # DOC Intelligence — Especificação (Trilha A · Backend)
 
-> Escrito antes de programar. Se a implementação divergiu em algum ponto, isso está marcado
-> explicitamente com **DIVERGÊNCIA** no lugar em que acontece, não escondido.
+> Escrito antes de programar. Passou por uma releitura completa depois da implementação (pedida
+> pelo usuário, comparando este documento com o código de verdade, não com a memória do que eu
+> achava que tinha escrito) — achou referências de ADR trocadas, uma alegação de arquitetura que
+> não existia no código, uma máquina de estados incompleta (faltava o caminho de retry e o de
+> recuperação de crash) e um contrato de erro incompleto no `PATCH /review`. Nada disso era
+> "implementação divergiu de uma decisão de design que eu defenderia" — era erro de redação ou
+> lacuna de revisão, então corrigi o texto direto em vez de manter o erro com uma nota ao lado. O
+> texto original de cada correção e o porquê estão no histórico do git (`git log -p -- docs/`) e
+> narrados em `ia/README.md`; nenhum é apagado, só não fica misturado ao texto corrente. Duas
+> correções também mudaram *código* (não só a spec), as duas dentro do fato do ambiente (a):
+> recuperação de documentos travados em `processing` após um crash, e um timeout na chamada ao
+> classificador (o fato diz "de vez em quando... simplesmente não responde" — nada limitava isso
+> antes). As duas estavam descritas como risco conhecido, não implementado, na primeira versão;
+> implementadas de verdade nesta releitura (ver
+> `docs/adr/0001-processamento-assincrono-e-retry.md`).
 >
 > Contexto de prazo: quando esta sessão começou, restavam ~4h até o prazo (ver `ia/prompts.md`) —
 > bem menos do que eu tinha assumido de início. Não sei quando o documento foi originalmente
@@ -85,12 +98,16 @@ Document {
 received --(worker pega o job)--> processing
 processing --(confiança >= limiar)--> ready
 processing --(confiança < limiar)--> needs_review
-processing --(falha após N tentativas)--> failed
+processing --(falha do classificador, ainda tem tentativa)--> received   [retry — fato a]
+processing --(falha do classificador, esgotou tentativas)--> failed
+processing --(processo caiu no meio — boot seguinte)--> received   [recuperação — ADR 0001]
 needs_review --(PATCH /review com sucesso)--> reviewed
 ```
 
 `failed` é terminal para o worker automático — sai daí por reprocessamento manual (fora do escopo
-desta fatia; ver ADR 0001).
+desta fatia; ver ADR 0001). `processing` **não é terminal nem em crash**: todo boot roda
+`requeueStaleProcessing()` antes de o worker começar, recuperando qualquer documento preso em
+`processing` de uma queda anterior — ver ADR 0001.
 
 ### 3.3 Tipos de documento cobertos pelo dublê
 
@@ -190,21 +207,32 @@ Stream dos bytes originais com o `Content-Type` detectado. `404` se não existir
 
 Corpo: `{ version: number, reviewer: string, fields?: Record<string,string>, docType?: string }`.
 
-- Só é aceito quando `status == "needs_review"`.
-- `version` tem que bater com o `version` atual do documento (concorrência otimista — fato **g**).
-  Se não bater: `409 Conflict`, corpo = `Document` atual, para o cliente reconciliar.
-- Sucesso: `200 OK`, status vira `reviewed`, `version` incrementa, `reviewedBy`/`reviewedAt`
+- `400` — `version` ausente/não-numérico ou `reviewer` ausente/vazio (`code: "invalid_body"`).
+- `404` — id não existe.
+- `409` (`code: "version_conflict"`) — `version` não bate com o `version` atual do documento
+  (concorrência otimista — fato **g**). Corpo inclui `current` = `Document` atual, para o cliente
+  reconciliar.
+- `409` (`code: "invalid_review_state"`) — documento existe e a versão bate, mas `status` não é
+  `needs_review` (ex.: já foi revisado, ou ainda está `processing`). Corpo **não** inclui
+  `current` neste caso — é um erro de estado, não de concorrência.
+- `200 OK` — sucesso: status vira `reviewed`, `version` incrementa, `reviewedBy`/`reviewedAt`
   preenchidos.
+
+### GET /health
+
+Fora do prefixo `/v1` e **não exige API key** — é para infraestrutura (load balancer,
+orquestrador) verificar se o processo está de pé, não é contrato de negócio. `200 OK`,
+`{ "status": "ok" }`. Ver ADR 0006.
 
 ## 6. Fatos do ambiente → decisão
 
 | Fato | Tratamento nesta entrega |
 |---|---|
-| (a) LLM 5–40s, falha às vezes | Processamento assíncrono (worker separado do request HTTP); stub simula atraso e falha determinística; retry com no máximo 3 tentativas antes de `failed`. ADR 0001. |
+| (a) LLM 5–40s, falha às vezes, ou não responde | Processamento assíncrono (worker separado do request HTTP); chamada ao classificador com timeout (`LLM_CALL_TIMEOUT_MS`, trata "não respondeu" como falha comum); retry com no máximo 3 tentativas antes de `failed`; stub simula atraso e falha determinística. ADR 0001. |
 | (b) Remetente não valida nada, nome de arquivo não confiável | Tipo detectado por magic bytes; nome do cliente guardado só como metadado de exibição, nunca usado em lógica. |
 | (c) Mesmo documento chega mais de uma vez | Dedup por SHA-256 do conteúdo em `POST /documents` — reenvio idêntico não cria registro novo. Registrado como limitação: foto **diferente** do mesmo papel físico tem hash diferente e não é pega por isso (ADR 0003). |
 | (d) Dado pessoal sensível | API key obrigatória (fato e); campos extraídos nunca vão para log; `.gitignore` cobre `data/` e fixtures reais nunca entram no repo. Criptografia em repouso e retenção/expurgo — **não implementado**, registrado como risco (ADR 0008). |
-| (e) 150/dia, pico 800 em 2h | Worker com limite de chamadas concorrentes ao classificador (`MAX_CONCURRENT_LLM_CALLS`), pra não estourar rate limit/custo do fornecedor nem o burst horário. Fila in-process absorve o burst; não sobrevive a restart (ADR 0001). |
+| (e) 150/dia, pico 800 em 2h | Worker com limite de chamadas concorrentes ao classificador (`MAX_CONCURRENT_LLM_CALLS`), pra não estourar rate limit/custo do fornecedor nem o burst horário. Fila in-process, mas nada se perde num restart: documentos `received` já estão persistidos, e `requeueStaleProcessing()` recupera os que travaram em `processing` no boot seguinte (ADR 0001). O que **não** está resolvido é a vazão: no pico a 10x, a capacidade do worker fica bem abaixo do necessário — ver carta de fechamento, pergunta 2. |
 | (f) Modelo/prompt vão mudar | `promptVersion`/`modelVersion` gravados por documento processado. Prompts do domínio (não os prompts desta sessão) vivem como arquivos versionados fora do código (`src/adapters/llm/prompts/*.md`), não como string solta. |
 | (g) Duas pessoas na fila de revisão ao mesmo tempo | Concorrência otimista em `PATCH /review` via campo `version`; segunda escrita concorrente recebe `409`, não sobrescreve silenciosamente. ADR 0005. |
 

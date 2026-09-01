@@ -125,7 +125,12 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409":
-          description: Conflito de versão (ADR 0005) ou documento fora de needs_review.
+          description: >
+            Dois casos distintos com o mesmo status HTTP, diferenciados por `error.code`:
+            `version_conflict` (a versão enviada não bate com a atual — ADR 0005; corpo inclui
+            `current` com o documento atual, para o cliente reconciliar) ou
+            `invalid_review_state` (documento existe e a versão bate, mas `status` não é
+            `needs_review`; corpo **não** inclui `current`, é erro de estado, não de concorrência).
           content:
             application/json:
               schema:
@@ -133,8 +138,24 @@ paths:
                 properties:
                   error:
                     type: object
-                    properties: { code: { type: string }, message: { type: string } }
-                  current: { $ref: "#/components/schemas/Document" }
+                    properties: { code: { type: string, enum: [version_conflict, invalid_review_state] }, message: { type: string } }
+                  current:
+                    allOf: [{ $ref: "#/components/schemas/Document" }]
+                    description: "Presente só quando error.code = version_conflict."
+  /health:
+    servers:
+      - url: http://localhost:3000
+    get:
+      summary: Health check — fora do prefixo /v1, sem API key (ADR 0006)
+      security: []
+      responses:
+        "200":
+          description: Processo está de pé.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties: { status: { type: string, enum: [ok] } }
 components:
   securitySchemes:
     apiKey:
