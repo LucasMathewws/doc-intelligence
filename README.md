@@ -65,6 +65,12 @@ edital ou a um alvo de comportamento:
    **sobrevive intacta** depois do conflito da segunda, não só que a segunda recebeu erro.
 4. **Detecção de tipo por conteúdo** (`content-sniff.test.ts`) — fato (b): remetente não valida
    nada, nome de arquivo não é confiável.
+5. **Serialização de escrita no repositório em arquivo** (`json-file-document-repository.test.ts`)
+   — o teste de concorrência em `review-document.test.ts` prova a regra de negócio (versão errada
+   é rejeitada) usando o fake em memória; este aqui prova que o adaptador real (arquivo JSON,
+   fila de escrita interna) não perde uma mutação quando duas chamadas a `updateWithVersion`
+   acontecem sem await entre elas — é a peça de concorrência que eu mais desconfiava de mim mesmo
+   escrevendo à mão, então ganhou teste dedicado no adaptador, não só no domínio.
 
 Não testei: a camada HTTP diretamente (rotas/middleware) — testei os casos de uso de domínio
 puros, com um repositório em memória (`test/fakes/`) no lugar do adaptador de arquivo. A cobertura
