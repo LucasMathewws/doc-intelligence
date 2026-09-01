@@ -47,11 +47,11 @@ Contrato completo (todas as rotas, formatos de erro, máquina de estados): `docs
 
 ```bash
 npm run typecheck   # tsc --noEmit
-npm test            # node:test, ~20 casos, roda em <1s
+npm test            # node:test, 24 casos, roda em <1s
 ```
 
 **O que escolhi testar, e por quê**: não busquei cobertura alta — busquei os pontos onde um erro
-silencioso seria caro ou embaraçoso. Quatro áreas, cada uma ligada a um fato do ambiente do
+silencioso seria caro ou embaraçoso. Cinco áreas, cada uma ligada a um fato do ambiente do
 edital ou a um alvo de comportamento:
 
 1. **Deduplicação por hash** (`ingest-document.test.ts`) — fato (c): mesmo documento chega mais de
@@ -81,15 +81,17 @@ de bug ali é menor do que nas quatro áreas acima.
 ## Estrutura
 
 ```
-docs/spec.md          especificação — escrita antes do código
-docs/adr/              decisões de arquitetura, uma por arquivo, com alternativas descartadas
-src/domain/            entidades, portas (interfaces) e casos de uso — sem depender de Express/FS
-src/adapters/          implementações concretas: HTTP, repositório em arquivo, LLM dublê
-src/worker.ts          loop de processamento assíncrono
-test/                  testes de domínio (node:test) + fakes
-fixtures/              documentos fictícios para teste manual (nenhum dado real)
-ia/                    registro de uso de IA (obrigatório pelo edital)
-carta-de-fechamento/   carta de fechamento (fonte .md e PDF final)
+docs/spec.md            especificação — escrita antes do código
+docs/adr/               decisões de arquitetura, uma por arquivo, com alternativas descartadas
+docs/openapi.yaml       contrato formal (espelha docs/spec.md §5)
+src/domain/             entidades, portas (interfaces) e casos de uso — sem depender de Express/FS
+src/adapters/           implementações concretas: HTTP, repositório em arquivo, LLM dublê
+src/adapters/llm/prompts/  prompts do PRODUTO (não os desta sessão — ver ia/), versionados por tipo
+src/worker.ts           loop de processamento assíncrono
+test/                   testes de domínio (node:test) + fakes
+fixtures/               documentos fictícios para teste manual (nenhum dado real)
+ia/                     registro de uso de IA (obrigatório pelo edital)
+carta-de-fechamento/    carta de fechamento (fonte .md e PDF final)
 ```
 
 ## O que não está aqui (de propósito)
