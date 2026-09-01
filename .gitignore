@@ -4,3 +4,4 @@ data/
 *.log
 .env
 Processo Seletivo.pdf
+.claude/
