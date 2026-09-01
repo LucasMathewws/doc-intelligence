@@ -63,7 +63,6 @@ Document {
   contentType        string   // detectado por magic bytes, não pelo header/extensão do cliente
   sizeBytes          number
   contentHash        string   // sha256 do conteúdo — chave de deduplicação
-  duplicateOf        string?  // id do documento original, se este for um reenvio idêntico
   receivedAt         string (ISO 8601)
   docType            "identidade" | "comprovante_residencia" | "contracheque" | "outro" | null
   fields             Record<string,string> | null   // campos extraídos, por tipo de documento
@@ -164,9 +163,10 @@ Validação: content-type é detectado pelos primeiros bytes do arquivo (magic b
 extensão nem pelo `Content-Type` declarado pelo cliente (fato do ambiente **b**: quem envia não
 valida nada do lado dele).
 
-- `201 Created` — documento novo, corpo = `Document` (status `received`).
-- `200 OK` — hash já existe; corpo = `Document` existente, com `duplicateOf` apontando pra ele
-  mesmo caso o cliente precise saber que não é um registro novo (fato **c**).
+- `201 Created` — documento novo, corpo = `Document & { duplicate: false }` (status `received`).
+- `200 OK` — hash já existe; corpo = `Document` existente `& { duplicate: true }`, para o cliente
+  saber que não é um registro novo sem precisar comparar timestamps (fato **c**). Não criamos um
+  registro novo self-referenciando o original — o hash já É a chave de deduplicação.
 - `400` — arquivo ausente, tipo não reconhecido pelos magic bytes, ou acima do limite de tamanho.
 
 ### GET /v1/documents/:id
