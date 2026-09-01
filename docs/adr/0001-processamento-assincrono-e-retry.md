@@ -29,8 +29,11 @@ nossa CPU.
 - **Fila durável externa (SQS, BullMQ+Redis)**: é o caminho certo para produção (sobrevive a
   restart, escala pra múltiplos processos), mas depende de infraestrutura extra. Sob o prazo desta
   entrega (~4h), o risco de setup (Redis rodando, credenciais) não valia o ganho para provar a
-  arquitetura. A fila é uma porta (`JobQueuePort` implícita no worker loop) justamente para essa
-  troca ser isolada depois — ver `docs/spec.md` §4.
+  arquitetura. Não criei uma interface `JobQueuePort` formal para isso — seria abstração sem
+  segunda implementação (ADR 0009 argumenta contra isso). O ponto de troca real é mais simples:
+  `processDocument` (o caso de uso) não importa nada de `worker.ts` nem sabe que existe um loop —
+  troca-se só `worker.ts` por um consumer de fila real, chamando a mesma função por mensagem. Ver
+  `docs/spec.md` §4.
 - **Retry infinito**: descartado — sem limite, um documento problemático nunca sai do sistema e
   consome orçamento de chamadas ao fornecedor indefinidamente.
 

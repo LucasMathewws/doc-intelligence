@@ -27,7 +27,7 @@ consumo é por HTTP, de outro sistema interno.
 2. Processar de forma assíncrona: um "dublê" (stub) faz o papel do modelo multimodal — sempre
    classifica o mesmo tipo de documento e devolve os mesmos campos para o mesmo arquivo, mas a
    confiança e a simulação de falha variam de forma determinística com o hash do conteúdo (ver
-   ADR 0002), para que a demonstração exercite os dois caminhos (pronto / precisa revisão) sem
+   ADR 0004), para que a demonstração exercite os dois caminhos (pronto / precisa revisão) sem
    precisar de flags manuais.
 3. Gravar o resultado e permitir consultá-lo por id, e listar os já processados com filtro por
    status.
@@ -41,7 +41,7 @@ consumo é por HTTP, de outro sistema interno.
 carta de fechamento):
 
 - Chamada real a um modelo multimodal de terceiro — é um dublê. Trocar por uma chamada real é
-  implementar `LlmClassifierPort` de novo; o resto do sistema não muda (ADR 0001).
+  implementar `LlmClassifierPort` de novo; o resto do sistema não muda (ADR 0004, ADR 0009).
 - Normalização de foto torta/rotação EXIF antes de mandar pro classificador — registrado como
   risco conhecido (ADR 0007), não implementado.
 - Autenticação real (OAuth2/mTLS entre serviços) — API key estática como placeholder (ADR 0006).
@@ -136,9 +136,13 @@ da avaliação, então isso é intencional):
   fechamento sobre o que quebra com 10x volume): implementa-se `DocumentRepositoryPort` de novo.
   As queries de domínio (`findByHash`, `list`, `updateWithVersion`) já são a interface que o
   Postgres precisaria satisfazer.
-- **Trocar a fila** (in-process → SQS/BullMQ, mesma razão de volume): implementa-se
-  `JobQueuePort`. O caso de uso `processDocument` não sabe se foi chamado por um `setInterval` ou
-  por um consumer de fila real.
+- **Trocar a fila** (in-process → SQS/BullMQ, mesma razão de volume): **não há uma
+  `JobQueuePort` formal nesta fatia** — seria abstração sem segunda implementação, o que a ADR
+  0009 argumenta contra. O que existe, e que já entrega o mesmo efeito, é `processDocument`
+  (`src/domain/services/process-document.ts`) não importar nada de `src/worker.ts` nem saber que
+  existe um loop por trás — ele recebe um documento e as portas de que precisa, ponto. Trocar a
+  fila é reescrever só `src/worker.ts` para consumir de SQS/BullMQ e chamar a mesma função por
+  mensagem — nenhuma rota ou caso de uso muda, mesmo sem uma interface nomeada para isso.
 
 ## 5. Contrato da API
 
@@ -199,7 +203,7 @@ Corpo: `{ version: number, reviewer: string, fields?: Record<string,string>, doc
 | (b) Remetente não valida nada, nome de arquivo não confiável | Tipo detectado por magic bytes; nome do cliente guardado só como metadado de exibição, nunca usado em lógica. |
 | (c) Mesmo documento chega mais de uma vez | Dedup por SHA-256 do conteúdo em `POST /documents` — reenvio idêntico não cria registro novo. Registrado como limitação: foto **diferente** do mesmo papel físico tem hash diferente e não é pega por isso (ADR 0003). |
 | (d) Dado pessoal sensível | API key obrigatória (fato e); campos extraídos nunca vão para log; `.gitignore` cobre `data/` e fixtures reais nunca entram no repo. Criptografia em repouso e retenção/expurgo — **não implementado**, registrado como risco (ADR 0008). |
-| (e) 150/dia, pico 800 em 2h | Worker com limite de chamadas concorrentes ao classificador (`MAX_CONCURRENT_LLM_CALLS`), pra não estourar rate limit/custo do fornecedor nem o burst horário. Fila in-process absorve o burst; não sobrevive a restart (ADR 0002). |
+| (e) 150/dia, pico 800 em 2h | Worker com limite de chamadas concorrentes ao classificador (`MAX_CONCURRENT_LLM_CALLS`), pra não estourar rate limit/custo do fornecedor nem o burst horário. Fila in-process absorve o burst; não sobrevive a restart (ADR 0001). |
 | (f) Modelo/prompt vão mudar | `promptVersion`/`modelVersion` gravados por documento processado. Prompts do domínio (não os prompts desta sessão) vivem como arquivos versionados fora do código (`src/adapters/llm/prompts/*.md`), não como string solta. |
 | (g) Duas pessoas na fila de revisão ao mesmo tempo | Concorrência otimista em `PATCH /review` via campo `version`; segunda escrita concorrente recebe `409`, não sobrescreve silenciosamente. ADR 0005. |
 
