@@ -1,22 +1,26 @@
+<!--
+  ARQUIVO PRESERVADO — NAO EDITAR.
+
+  Esta e a especificacao exatamente como foi escrita ANTES de programar, no primeiro commit
+  do repositorio (9490893, 01/09/2026 09:03). O edital pede: "Se a implementacao divergiu da
+  especificacao, entregue a especificacao como estava e diga onde divergiu." Este arquivo e a
+  primeira metade disso; docs/divergencias.md e a segunda.
+
+  Tudo abaixo desta marca esta intacto, com os erros que tinha na epoca (referencias de ADR
+  trocadas, um campo duplicateOf que nunca foi implementado, uma JobQueuePort que nunca
+  existiu). Nao corrigi nada aqui de proposito — a versao corrigida e mantida viva e
+  docs/spec.md.
+-->
+
 # DOC Intelligence — Especificação (Trilha A · Backend)
 
-> **Esta é a versão viva da especificação** — corrigida, descreve o sistema como ele está hoje.
-> O edital pede a especificação *como estava* mais o registro de onde a implementação divergiu:
+> Escrito antes de programar. Se a implementação divergiu em algum ponto, isso está marcado
+> explicitamente com **DIVERGÊNCIA** no lugar em que acontece, não escondido.
 >
-> - [`spec-original.md`](spec-original.md) — congelada no primeiro commit, com os erros que tinha
->   na época, sem nenhuma correção.
-> - [`divergencias.md`](divergencias.md) — o que mudou entre as duas, item por item, separando
->   divergência real de erro de redação e de escopo ampliado.
->
-> Escrito antes de programar; passou por uma releitura completa depois da implementação, pedida
-> pelo usuário, comparando este documento com o código de verdade — não com a memória do que eu
-> achava ter escrito.
->
-> Contexto de prazo: quando esta sessão começou, restavam ~4h até o prazo (ver `ia/prompts.md`) —
-> bem menos do que eu tinha assumido de início. Não sei quando o documento foi originalmente
-> recebido nem por que restava tão pouco tempo; só sei que restava. Isso define o tamanho do
-> escopo abaixo — a decisão consciente foi cobrir os 7 fatos do ambiente com profundidade honesta,
-> em vez de tentar as 5 funcionalidades-alvo por igual.
+> Contexto de prazo: este documento foi escrito sob um prazo real de ~4h (ver `ia/prompts.md`),
+> não os 3 dias corridos previstos no edital. Isso define o tamanho do escopo abaixo — a decisão
+> consciente foi cobrir os 7 fatos do ambiente com profundidade honesta, em vez de tentar as 5
+> funcionalidades-alvo por igual.
 
 ## 1. Objetivo
 
@@ -37,7 +41,7 @@ consumo é por HTTP, de outro sistema interno.
 2. Processar de forma assíncrona: um "dublê" (stub) faz o papel do modelo multimodal — sempre
    classifica o mesmo tipo de documento e devolve os mesmos campos para o mesmo arquivo, mas a
    confiança e a simulação de falha variam de forma determinística com o hash do conteúdo (ver
-   ADR 0004), para que a demonstração exercite os dois caminhos (pronto / precisa revisão) sem
+   ADR 0002), para que a demonstração exercite os dois caminhos (pronto / precisa revisão) sem
    precisar de flags manuais.
 3. Gravar o resultado e permitir consultá-lo por id, e listar os já processados com filtro por
    status.
@@ -51,7 +55,7 @@ consumo é por HTTP, de outro sistema interno.
 carta de fechamento):
 
 - Chamada real a um modelo multimodal de terceiro — é um dublê. Trocar por uma chamada real é
-  implementar `LlmClassifierPort` de novo; o resto do sistema não muda (ADR 0004, ADR 0009).
+  implementar `LlmClassifierPort` de novo; o resto do sistema não muda (ADR 0001).
 - Normalização de foto torta/rotação EXIF antes de mandar pro classificador — registrado como
   risco conhecido (ADR 0007), não implementado.
 - Autenticação real (OAuth2/mTLS entre serviços) — API key estática como placeholder (ADR 0006).
@@ -73,6 +77,7 @@ Document {
   contentType        string   // detectado por magic bytes, não pelo header/extensão do cliente
   sizeBytes          number
   contentHash        string   // sha256 do conteúdo — chave de deduplicação
+  duplicateOf        string?  // id do documento original, se este for um reenvio idêntico
   receivedAt         string (ISO 8601)
   docType            "identidade" | "comprovante_residencia" | "contracheque" | "outro" | null
   fields             Record<string,string> | null   // campos extraídos, por tipo de documento
@@ -94,16 +99,12 @@ Document {
 received --(worker pega o job)--> processing
 processing --(confiança >= limiar)--> ready
 processing --(confiança < limiar)--> needs_review
-processing --(falha do classificador, ainda tem tentativa)--> received   [retry — fato a]
-processing --(falha do classificador, esgotou tentativas)--> failed
-processing --(processo caiu no meio — boot seguinte)--> received   [recuperação — ADR 0001]
+processing --(falha após N tentativas)--> failed
 needs_review --(PATCH /review com sucesso)--> reviewed
 ```
 
 `failed` é terminal para o worker automático — sai daí por reprocessamento manual (fora do escopo
-desta fatia; ver ADR 0001). `processing` **não é terminal nem em crash**: todo boot roda
-`requeueStaleProcessing()` antes de o worker começar, recuperando qualquer documento preso em
-`processing` de uma queda anterior — ver ADR 0001.
+desta fatia; ver ADR 0001).
 
 ### 3.3 Tipos de documento cobertos pelo dublê
 
@@ -150,19 +151,14 @@ da avaliação, então isso é intencional):
   fechamento sobre o que quebra com 10x volume): implementa-se `DocumentRepositoryPort` de novo.
   As queries de domínio (`findByHash`, `list`, `updateWithVersion`) já são a interface que o
   Postgres precisaria satisfazer.
-- **Trocar a fila** (in-process → SQS/BullMQ, mesma razão de volume): **não há uma
-  `JobQueuePort` formal nesta fatia** — seria abstração sem segunda implementação, o que a ADR
-  0009 argumenta contra. O que existe, e que já entrega o mesmo efeito, é `processDocument`
-  (`src/domain/services/process-document.ts`) não importar nada de `src/worker.ts` nem saber que
-  existe um loop por trás — ele recebe um documento e as portas de que precisa, ponto. Trocar a
-  fila é reescrever só `src/worker.ts` para consumir de SQS/BullMQ e chamar a mesma função por
-  mensagem — nenhuma rota ou caso de uso muda, mesmo sem uma interface nomeada para isso.
+- **Trocar a fila** (in-process → SQS/BullMQ, mesma razão de volume): implementa-se
+  `JobQueuePort`. O caso de uso `processDocument` não sabe se foi chamado por um `setInterval` ou
+  por um consumer de fila real.
 
 ## 5. Contrato da API
 
-Todas as rotas de negócio (`/v1/*`) exigem header `Authorization: Bearer <API_KEY>` (placeholder
-de autenticação serviço-a-serviço — ADR 0006); `GET /health`, descrito no fim desta seção, é a
-única exceção. Respostas de erro seguem `{ "error": { "code", "message" } }`.
+Todas as rotas exigem header `Authorization: Bearer <API_KEY>` (placeholder de autenticação
+serviço-a-serviço — ADR 0006). Respostas de erro seguem `{ "error": { "code", "message" } }`.
 
 | Método | Rota | Descrição |
 |---|---|---|
@@ -182,10 +178,9 @@ Validação: content-type é detectado pelos primeiros bytes do arquivo (magic b
 extensão nem pelo `Content-Type` declarado pelo cliente (fato do ambiente **b**: quem envia não
 valida nada do lado dele).
 
-- `201 Created` — documento novo, corpo = `Document & { duplicate: false }` (status `received`).
-- `200 OK` — hash já existe; corpo = `Document` existente `& { duplicate: true }`, para o cliente
-  saber que não é um registro novo sem precisar comparar timestamps (fato **c**). Não criamos um
-  registro novo self-referenciando o original — o hash já É a chave de deduplicação.
+- `201 Created` — documento novo, corpo = `Document` (status `received`).
+- `200 OK` — hash já existe; corpo = `Document` existente, com `duplicateOf` apontando pra ele
+  mesmo caso o cliente precise saber que não é um registro novo (fato **c**).
 - `400` — arquivo ausente, tipo não reconhecido pelos magic bytes, ou acima do limite de tamanho.
 
 ### GET /v1/documents/:id
@@ -204,32 +199,21 @@ Stream dos bytes originais com o `Content-Type` detectado. `404` se não existir
 
 Corpo: `{ version: number, reviewer: string, fields?: Record<string,string>, docType?: string }`.
 
-- `400` — `version` ausente/não-numérico ou `reviewer` ausente/vazio (`code: "invalid_body"`).
-- `404` — id não existe.
-- `409` (`code: "version_conflict"`) — `version` não bate com o `version` atual do documento
-  (concorrência otimista — fato **g**). Corpo inclui `current` = `Document` atual, para o cliente
-  reconciliar.
-- `409` (`code: "invalid_review_state"`) — documento existe e a versão bate, mas `status` não é
-  `needs_review` (ex.: já foi revisado, ou ainda está `processing`). Corpo **não** inclui
-  `current` neste caso — é um erro de estado, não de concorrência.
-- `200 OK` — sucesso: status vira `reviewed`, `version` incrementa, `reviewedBy`/`reviewedAt`
+- Só é aceito quando `status == "needs_review"`.
+- `version` tem que bater com o `version` atual do documento (concorrência otimista — fato **g**).
+  Se não bater: `409 Conflict`, corpo = `Document` atual, para o cliente reconciliar.
+- Sucesso: `200 OK`, status vira `reviewed`, `version` incrementa, `reviewedBy`/`reviewedAt`
   preenchidos.
-
-### GET /health
-
-Fora do prefixo `/v1` e **não exige API key** — é para infraestrutura (load balancer,
-orquestrador) verificar se o processo está de pé, não é contrato de negócio. `200 OK`,
-`{ "status": "ok" }`. Ver ADR 0006.
 
 ## 6. Fatos do ambiente → decisão
 
 | Fato | Tratamento nesta entrega |
 |---|---|
-| (a) LLM 5–40s, falha às vezes, ou não responde | Processamento assíncrono (worker separado do request HTTP); chamada ao classificador com timeout (`LLM_CALL_TIMEOUT_MS`, trata "não respondeu" como falha comum); retry com no máximo 3 tentativas antes de `failed`; stub simula atraso e falha determinística. ADR 0001. |
+| (a) LLM 5–40s, falha às vezes | Processamento assíncrono (worker separado do request HTTP); stub simula atraso e falha determinística; retry com no máximo 3 tentativas antes de `failed`. ADR 0001. |
 | (b) Remetente não valida nada, nome de arquivo não confiável | Tipo detectado por magic bytes; nome do cliente guardado só como metadado de exibição, nunca usado em lógica. |
 | (c) Mesmo documento chega mais de uma vez | Dedup por SHA-256 do conteúdo em `POST /documents` — reenvio idêntico não cria registro novo. Registrado como limitação: foto **diferente** do mesmo papel físico tem hash diferente e não é pega por isso (ADR 0003). |
 | (d) Dado pessoal sensível | API key obrigatória (fato e); campos extraídos nunca vão para log; `.gitignore` cobre `data/` e fixtures reais nunca entram no repo. Criptografia em repouso e retenção/expurgo — **não implementado**, registrado como risco (ADR 0008). |
-| (e) 150/dia, pico 800 em 2h | Worker com limite de chamadas concorrentes ao classificador (`MAX_CONCURRENT_LLM_CALLS`), pra não estourar rate limit/custo do fornecedor nem o burst horário. Fila in-process, mas nada se perde num restart: documentos `received` já estão persistidos, e `requeueStaleProcessing()` recupera os que travaram em `processing` no boot seguinte (ADR 0001). O que **não** está resolvido é a vazão: no pico a 10x, a capacidade do worker fica bem abaixo do necessário — ver carta de fechamento, pergunta 2. |
+| (e) 150/dia, pico 800 em 2h | Worker com limite de chamadas concorrentes ao classificador (`MAX_CONCURRENT_LLM_CALLS`), pra não estourar rate limit/custo do fornecedor nem o burst horário. Fila in-process absorve o burst; não sobrevive a restart (ADR 0002). |
 | (f) Modelo/prompt vão mudar | `promptVersion`/`modelVersion` gravados por documento processado. Prompts do domínio (não os prompts desta sessão) vivem como arquivos versionados fora do código (`src/adapters/llm/prompts/*.md`), não como string solta. |
 | (g) Duas pessoas na fila de revisão ao mesmo tempo | Concorrência otimista em `PATCH /review` via campo `version`; segunda escrita concorrente recebe `409`, não sobrescreve silenciosamente. ADR 0005. |
 

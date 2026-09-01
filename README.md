@@ -84,7 +84,9 @@ menor do que nas cinco áreas acima.
 ## Estrutura
 
 ```
-docs/spec.md            especificação — escrita antes do código
+docs/spec.md            especificação viva (corrigida) — escrita antes do código
+docs/spec-original.md   a mesma spec congelada no 1º commit, com os erros da época
+docs/divergencias.md    onde a implementação divergiu da spec original, item por item
 docs/adr/               decisões de arquitetura, uma por arquivo, com alternativas descartadas
 docs/openapi.yaml       contrato formal (espelha docs/spec.md §5)
 src/domain/             entidades, portas (interfaces) e casos de uso — sem depender de Express/FS
