@@ -28,8 +28,9 @@ cenário real) sustenta uma fração pequena disso — na configuração atual, 
 documentos/minuto no melhor caso. O pico de 2h deixaria de caber em 2h; viraria uma fila que só
 esvazia depois do expediente. Mas o gargalo mais imediato não é nem esse: é a persistência em
 arquivo JSON (ADR 0002), que reescreve o arquivo inteiro a cada mutação e serializa toda escrita
-num único processo — a 10x volume, cada transição de estado de cada documento (recebido →
-processando → pronto/revisão, mais a correção humana) compete pelo mesmo arquivo cada vez maior.
+num único processo — a 10x volume, cada transição de estado de cada documento (de recebido para
+processando, daí para pronto ou revisão, mais a correção humana) compete pelo mesmo arquivo cada
+vez maior.
 Isso quebra antes mesmo do worker saturar, e quebra de um jeito silencioso (tudo continua
 "funcionando", só cada vez mais devagar) — o tipo de falha mais perigoso de não perceber a tempo.
 Correção nessa ordem: Postgres (dedup e status indexados) antes de qualquer fila durável.
