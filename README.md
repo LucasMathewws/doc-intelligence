@@ -47,7 +47,7 @@ Contrato completo (todas as rotas, formatos de erro, máquina de estados): `docs
 
 ```bash
 npm run typecheck   # tsc --noEmit
-npm test            # node:test, 27 casos, roda em <1s
+npm test            # node:test, 28 casos, roda em <1s
 ```
 
 **O que escolhi testar, e por quê**: não busquei cobertura alta — busquei os pontos onde um erro
@@ -56,10 +56,13 @@ edital ou a um alvo de comportamento:
 
 1. **Deduplicação por hash** (`ingest-document.test.ts`) — fato (c): mesmo documento chega mais de
    uma vez. Se isso quebrar, cada reenvio vira uma chamada paga em dobro ao classificador.
-2. **Limiar de confiança, retry e timeout** (`process-document.test.ts`) — alvo #4: é o coração do
-   produto ("não deixar o documento entrar como pronto"). Testei os dois lados do limiar, o
-   caminho falha→retry→failed, e o caso mais literal do fato (a) — um classificador que nunca
-   responde (achado nesta revisão) — não só o caminho feliz.
+2. **Limiar de confiança, retry, timeout e cobrança única** (`process-document.test.ts`) — alvo
+   #4: é o coração do produto ("não deixar o documento entrar como pronto"). Testei os dois lados
+   do limiar, o caminho falha→retry→failed, o caso mais literal do fato (a) (um classificador que
+   nunca responde), e que o mesmo documento processado em paralelo chama o classificador **uma
+   vez só** — esse último porque o fato (a) diz que a chamada é cobrada por documento, e a
+   proteção existia por acidente (efeito colateral da checagem de versão da ADR 0005) sem nenhum
+   teste apontando para ela.
 3. **Concorrência otimista na revisão** (`review-document.test.ts`) — fato (g): duas pessoas na
    fila ao mesmo tempo. É o teste que mais me preocupava escrever errado (fácil simular "não deu
    conflito" por engano), por isso ele verifica explicitamente que a correção da primeira pessoa

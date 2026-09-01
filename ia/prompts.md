@@ -58,7 +58,8 @@ Antes de fechar a carta e criar o repositório remoto, o agente fez outra pergun
 
 Entre a entrada 3 e a entrada 4 abaixo, não houve nenhum prompt novo do usuário — o agente
 trabalhou de forma contínua: escreveu `docs/spec.md` e as 9 ADRs, implementou a fatia vertical
-completa (domínio, adapters, HTTP, worker), escreveu e rodou os 24 testes, escreveu
+completa (domínio, adapters, HTTP, worker), escreveu e rodou os testes (24 naquele momento; 28 na
+entrega final, depois das revisões), escreveu
 README/CLAUDE.md/registro de uso de IA, formalizou o contrato em `docs/openapi.yaml`, fez uma
 releitura deliberada da spec e das ADRs e corrigiu erros reais encontrados nelas (ver
 `ia/README.md`), e conduziu a criação do repositório no GitHub e o push — incluindo contornar uma
