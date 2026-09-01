@@ -21,20 +21,23 @@ mesma documentação.
 
 ## Onde o agente errou, como percebi, e o que fiz
 
-O exemplo mais concreto: ao escrever `test/process-document.test.ts`, assumi que o campo `nome`
-seria usado no nome de arquivo sugerido para um documento do tipo `identidade` e escrevi a
-asserção do teste em cima dessa suposição. Rodei a suíte (`npm test`) e ela falhou — não assumi
-que o teste estava certo e fui direto mexer no código; comparei a asserção com
-`KEY_FIELD_BY_TYPE` em `src/domain/suggest-filename.ts` e vi que o campo-chave real para
-`identidade` é `numero`, não `nome`, e o objeto de teste (`CANNED`) só tinha `nome`. O código
-estava correto (caiu no fallback `"documento"` como deveria); o erro era a expectativa do teste.
-Corrigi a asserção, não o código, e documentei o motivo no próprio teste para a próxima pessoa não
-repetir a mesma suposição. Um segundo ponto de fricção, menor: tentei inicialmente remover
-acentos em `suggestFilename` com uma regex baseada em marcas diacríticas Unicode digitadas
-literalmente; o resultado era difícil de verificar visualmente e as tentativas de correção via
-edição de diff não pegavam a diferença de forma confiável. Em vez de insistir, troquei por um mapa
-explícito de substituição de caracteres acentuados — mais verboso, mas verificável a olho e sem
-depender de eu ter digitado o intervalo Unicode certo.
+O erro mais significativo não estava no código — estava na documentação sobre o código. Ao
+escrever `docs/spec.md` §4, descrevi a troca de fila (in-process → SQS/BullMQ) como algo isolado
+atrás de uma interface `JobQueuePort`, citando-a como se já existisse. Ela nunca foi criada — não
+há esse arquivo, essa interface, nada. Isso só apareceu porque fiz uma releitura deliberada da
+spec inteira depois do código pronto (não fazia parte do plano original, foi uma escolha de usar
+tempo de sobra) e passei um `grep` por todas as citações de ADR pra conferir se cada uma apontava
+pro assunto certo. Achei essa reivindicação falsa e mais três citações de ADR com o número
+trocado (ex.: um trecho sobre o dublê determinístico citava a ADR de persistência em vez da ADR
+do próprio dublê). Corrigi as quatro, e na do `JobQueuePort` não criei a interface só para a spec
+ficar "verdadeira" — descrevi o que realmente sustenta a alegação (`processDocument` não importa
+nada de `worker.ts`, então a troca é isolada mesmo sem interface nomeada), porque criar uma
+interface com um único caller só para bater com o texto seria exatamente o tipo de abstração
+prematura que a ADR 0009 argumenta contra. Um segundo erro, menor e mais mecânico: em
+`test/process-document.test.ts`, assumi por engano que o campo `nome` seria usado no nome de
+arquivo sugerido para `identidade`; a suíte falhou, comparei a asserção com `KEY_FIELD_BY_TYPE`
+em `suggest-filename.ts`, vi que o campo-chave real é `numero`, e corrigi o teste — não o código,
+que já estava certo.
 
 ## O ponto de virada da sessão
 
